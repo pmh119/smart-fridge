@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { rtdb } from '../firebase';
+import { ref, onValue, set } from 'firebase/database';
 import { 
   getItems, 
   saveItems, 
@@ -18,13 +20,75 @@ export const FridgeProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Read family code (default to 5688)
+  const familyCode = localStorage.getItem('family_sync_code') || '5688';
+  if (!localStorage.getItem('family_sync_code')) {
+    localStorage.setItem('family_sync_code', familyCode);
+  }
+
+  // 1. Initial synchronous load from LocalStorage
   useEffect(() => {
-    // Load initial values from localStorage synchronously
     setItems(getItems());
     setFridges(getFridges());
     setCart(getCart());
     setLoading(false);
   }, []);
+
+  // 2. Background Sync Listener
+  useEffect(() => {
+    const fridgeRef = ref(rtdb, `family-sync/${familyCode}/fridge`);
+    
+    const unsubscribe = onValue(fridgeRef, (snapshot) => {
+      const remoteData = snapshot.val();
+      if (remoteData) {
+        const localUpdatedAt = parseInt(localStorage.getItem('fridge_updated_at') || '0');
+        const remoteUpdatedAt = remoteData.updatedAt || 0;
+
+        if (remoteUpdatedAt > localUpdatedAt) {
+          const remoteItems = remoteData.items || [];
+          const remoteFridges = remoteData.fridges || [];
+          const remoteCart = remoteData.cart || [];
+
+          setItems(remoteItems);
+          setFridges(remoteFridges);
+          setCart(remoteCart);
+
+          saveItems(remoteItems);
+          saveFridges(remoteFridges);
+          saveCart(remoteCart);
+          localStorage.setItem('fridge_updated_at', remoteUpdatedAt.toString());
+          console.log('Smart Fridge synchronized with family cloud');
+        }
+      } else {
+        // If cloud path is empty, push our local storage to it
+        const currentItems = getItems();
+        const currentFridges = getFridges();
+        const currentCart = getCart();
+        const now = Date.now();
+        set(fridgeRef, {
+          items: currentItems,
+          fridges: currentFridges,
+          cart: currentCart,
+          updatedAt: now
+        }).catch(err => console.error('Initial cloud sync failed: ', err));
+      }
+    });
+
+    return () => unsubscribe();
+  }, [familyCode]);
+
+  // Helper to push updates to Firebase Realtime Database
+  const pushToCloud = (newItems, newFridges, newCart) => {
+    const now = Date.now();
+    localStorage.setItem('fridge_updated_at', now.toString());
+    const fridgeRef = ref(rtdb, `family-sync/${familyCode}/fridge`);
+    set(fridgeRef, {
+      items: newItems,
+      fridges: newFridges,
+      cart: newCart,
+      updatedAt: now
+    }).catch(err => console.error('Cloud synchronization failed: ', err));
+  };
 
   // CRUD Operations
   const addItem = async (item) => {
@@ -32,6 +96,7 @@ export const FridgeProvider = ({ children }) => {
     setItems(prevItems => {
       const updated = [...prevItems, newItem];
       saveItems(updated);
+      pushToCloud(updated, fridges, cart);
       return updated;
     });
     return newItem;
@@ -41,6 +106,7 @@ export const FridgeProvider = ({ children }) => {
     setItems(prevItems => {
       const updated = prevItems.map(item => item.id === id ? { ...item, ...data } : item);
       saveItems(updated);
+      pushToCloud(updated, fridges, cart);
       return updated;
     });
   };
@@ -49,6 +115,7 @@ export const FridgeProvider = ({ children }) => {
     setItems(prevItems => {
       const updated = prevItems.filter(item => item.id !== id);
       saveItems(updated);
+      pushToCloud(updated, fridges, cart);
       return updated;
     });
   };
@@ -58,6 +125,7 @@ export const FridgeProvider = ({ children }) => {
       if (!prevCart.some(c => c.name === name)) {
         const updated = [...prevCart, { id: Date.now().toString(), name, checked: false }];
         saveCart(updated);
+        pushToCloud(items, fridges, updated);
         return updated;
       }
       return prevCart;
@@ -68,6 +136,7 @@ export const FridgeProvider = ({ children }) => {
     setCart(prevCart => {
       const updated = prevCart.map(item => item.id === id ? { ...item, checked } : item);
       saveCart(updated);
+      pushToCloud(items, fridges, updated);
       return updated;
     });
   };
@@ -76,6 +145,7 @@ export const FridgeProvider = ({ children }) => {
     setCart(prevCart => {
       const updated = prevCart.filter(item => item.id !== id);
       saveCart(updated);
+      pushToCloud(items, fridges, updated);
       return updated;
     });
   };
@@ -85,6 +155,7 @@ export const FridgeProvider = ({ children }) => {
     setFridges(prevFridges => {
       const updated = [...prevFridges, newFridge];
       saveFridges(updated);
+      pushToCloud(items, updated, cart);
       return updated;
     });
     return newFridge;
@@ -92,7 +163,7 @@ export const FridgeProvider = ({ children }) => {
 
   return (
     <FridgeContext.Provider value={{ 
-      items, fridges, cart, loading,
+      items, fridges, cart, loading, familyCode,
       addItem, updateItem, deleteItem,
       addToCart, toggleCartItem, deleteCartItem,
       addFridge

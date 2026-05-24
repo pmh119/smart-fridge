@@ -1,10 +1,18 @@
 import React, { useState } from 'react';
 import { useFridge } from '../context/FridgeContext';
-import { Plus, Edit2, Trash2, Home, UserPlus } from 'lucide-react';
+import { Plus, Edit2, Trash2, Home, UserPlus, Key } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { fridges, addFridge, loading } = useFridge();
+  const { fridges, addFridge, loading, familyCode } = useFridge();
   const [newFridgeName, setNewFridgeName] = useState('');
+  const [code, setCode] = useState(familyCode || '5688');
+
+  const handleSaveCode = () => {
+    if (!code) return;
+    localStorage.setItem('family_sync_code', code.trim());
+    alert(`공유 코드가 '${code.trim()}'(으)로 변경되었습니다. 실시간 동기화를 적용하기 위해 페이지가 새로고침됩니다.`);
+    window.location.reload();
+  };
 
   const handleAddFridge = async () => {
     if (!newFridgeName) return;
@@ -64,19 +72,41 @@ export default function SettingsPage() {
         <h2 style={{ marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <UserPlus size={24} /> 팀원 및 공유
         </h2>
+        
+        <div className="cute-card" style={{ marginBottom: '1.5rem' }}>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Key size={18} style={{ color: 'var(--primary)' }} /> 가족 실시간 공유 코드
+          </h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.2rem' }}>
+            사모님과 동일한 공유 코드를 입력하면 냉장고 식재료 현황 및 장바구니가 실시간으로 안전하게 동기화됩니다. 기본 코드는 <strong>5688</strong>입니다.
+          </p>
+          <div style={{ display: 'flex', gap: '0.8rem' }}>
+            <input 
+              type="text" 
+              className="input-field" 
+              style={{ flex: 1, padding: '0.6rem 1rem', fontSize: '1rem' }}
+              placeholder="공유 코드 입력 (예: 5688)" 
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
+            <button className="btn btn-primary" style={{ padding: '0.6rem 1.2rem', fontSize: '0.9rem' }} onClick={handleSaveCode}>
+              코드 저장 및 새로고침
+            </button>
+          </div>
+        </div>
+
         <div className="cute-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
             <div>
               <h3 style={{ fontSize: '1.1rem' }}>현재 참여 중인 멤버</h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>총 3명이 함께 관리 중입니다.</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>가족 공유 코드를 통해 실시간 연동 중인 멤버 목록입니다.</p>
             </div>
-            <button className="btn btn-outline" style={{ fontSize: '0.85rem' }}>초대 링크 생성</button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {['나 (마스터)', '엄마', '동생'].map((member, i) => (
+            {['나 (마스터)', '배우자 (사모님)'].map((member, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.8rem', background: 'var(--bg-color)', borderRadius: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '20px', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}>
-                  {member[0]}
+                <div style={{ width: '40px', height: '40px', borderRadius: '20px', background: i === 0 ? 'var(--primary)' : '#8b5cf6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}>
+                  {i === 0 ? '나' : '배'}
                 </div>
                 <span style={{ fontWeight: '700' }}>{member}</span>
                 {i === 0 && <span className="badge badge-primary" style={{ fontSize: '0.7rem' }}>관리자</span>}
