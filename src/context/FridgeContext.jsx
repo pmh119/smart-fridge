@@ -1,15 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { db } from '../firebase';
 import { 
-  collection, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  where 
-} from 'firebase/firestore';
+  getItems, 
+  saveItems, 
+  getFridges, 
+  saveFridges, 
+  getCart, 
+  saveCart 
+} from '../utils/storage';
 
 const FridgeContext = createContext();
 
@@ -22,50 +19,76 @@ export const FridgeProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Subscribe to Items
-    const qItems = query(collection(db, 'items'));
-    const unsubItems = onSnapshot(qItems, (snapshot) => {
-      setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
-    // 2. Subscribe to Fridges
-    const qFridges = query(collection(db, 'fridges'));
-    const unsubFridges = onSnapshot(qFridges, (snapshot) => {
-      setFridges(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
-    // 3. Subscribe to Cart
-    const qCart = query(collection(db, 'cart'));
-    const unsubCart = onSnapshot(qCart, (snapshot) => {
-      setCart(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      setLoading(false);
-    });
-
-    return () => {
-      unsubItems();
-      unsubFridges();
-      unsubCart();
-    };
+    // Load initial values from localStorage synchronously
+    setItems(getItems());
+    setFridges(getFridges());
+    setCart(getCart());
+    setLoading(false);
   }, []);
 
   // CRUD Operations
-  const addItem = async (item) => await addDoc(collection(db, 'items'), item);
+  const addItem = async (item) => {
+    const newItem = { id: Date.now().toString(), ...item };
+    setItems(prevItems => {
+      const updated = [...prevItems, newItem];
+      saveItems(updated);
+      return updated;
+    });
+    return newItem;
+  };
   
-  const updateItem = async (id, data) => await updateDoc(doc(db, 'items', id), data);
+  const updateItem = async (id, data) => {
+    setItems(prevItems => {
+      const updated = prevItems.map(item => item.id === id ? { ...item, ...data } : item);
+      saveItems(updated);
+      return updated;
+    });
+  };
   
-  const deleteItem = async (id) => await deleteDoc(doc(db, 'items', id));
-
-  const addToCart = async (name) => {
-    if (!cart.some(c => c.name === name)) {
-      await addDoc(collection(db, 'cart'), { name, checked: false });
-    }
+  const deleteItem = async (id) => {
+    setItems(prevItems => {
+      const updated = prevItems.filter(item => item.id !== id);
+      saveItems(updated);
+      return updated;
+    });
   };
 
-  const toggleCartItem = async (id, checked) => await updateDoc(doc(db, 'cart', id), { checked });
+  const addToCart = async (name) => {
+    setCart(prevCart => {
+      if (!prevCart.some(c => c.name === name)) {
+        const updated = [...prevCart, { id: Date.now().toString(), name, checked: false }];
+        saveCart(updated);
+        return updated;
+      }
+      return prevCart;
+    });
+  };
 
-  const deleteCartItem = async (id) => await deleteDoc(doc(db, 'cart', id));
+  const toggleCartItem = async (id, checked) => {
+    setCart(prevCart => {
+      const updated = prevCart.map(item => item.id === id ? { ...item, checked } : item);
+      saveCart(updated);
+      return updated;
+    });
+  };
 
-  const addFridge = async (name) => await addDoc(collection(db, 'fridges'), { name, icon: '🧊' });
+  const deleteCartItem = async (id) => {
+    setCart(prevCart => {
+      const updated = prevCart.filter(item => item.id !== id);
+      saveCart(updated);
+      return updated;
+    });
+  };
+
+  const addFridge = async (name) => {
+    const newFridge = { id: Date.now().toString(), name, icon: '🧊' };
+    setFridges(prevFridges => {
+      const updated = [...prevFridges, newFridge];
+      saveFridges(updated);
+      return updated;
+    });
+    return newFridge;
+  };
 
   return (
     <FridgeContext.Provider value={{ 
