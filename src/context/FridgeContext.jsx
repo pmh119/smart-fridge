@@ -20,11 +20,13 @@ export const FridgeProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Read family code (default to 5688)
-  const familyCode = localStorage.getItem('family_sync_code') || '5688';
-  if (!localStorage.getItem('family_sync_code')) {
-    localStorage.setItem('family_sync_code', familyCode);
+  // Read family sync code from localStorage (must be set by user)
+  let initialFamilyCode = localStorage.getItem('family_sync_code') || '';
+  if (initialFamilyCode === '5688') {
+    localStorage.removeItem('family_sync_code');
+    initialFamilyCode = '';
   }
+  const familyCode = initialFamilyCode;
 
   // 1. Initial synchronous load from LocalStorage
   useEffect(() => {

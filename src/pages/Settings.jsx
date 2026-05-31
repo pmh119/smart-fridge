@@ -5,7 +5,7 @@ import { Plus, Edit2, Trash2, Home, UserPlus, Key } from 'lucide-react';
 export default function SettingsPage() {
   const { fridges, addFridge, loading, familyCode } = useFridge();
   const [newFridgeName, setNewFridgeName] = useState('');
-  const [code, setCode] = useState(familyCode || '5688');
+  const [code, setCode] = useState(familyCode || '');
 
   const handleSaveCode = () => {
     if (!code) return;
@@ -78,14 +78,14 @@ export default function SettingsPage() {
             <Key size={18} style={{ color: 'var(--primary)' }} /> 가족 실시간 공유 코드
           </h3>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.2rem' }}>
-            사모님과 동일한 공유 코드를 입력하면 냉장고 식재료 현황 및 장바구니가 실시간으로 안전하게 동기화됩니다. 기본 코드는 <strong>5688</strong>입니다.
+            사모님과 동일한 공유 코드를 입력하면 냉장고 식재료 현황 및 장바구니가 실시간으로 안전하게 동기화됩니다.
           </p>
           <div style={{ display: 'flex', gap: '0.8rem' }}>
             <input 
               type="text" 
               className="input-field" 
               style={{ flex: 1, padding: '0.6rem 1rem', fontSize: '1rem' }}
-              placeholder="공유 코드 입력 (예: 5688)" 
+              placeholder="공유 코드 입력" 
               value={code}
               onChange={(e) => setCode(e.target.value)}
             />
